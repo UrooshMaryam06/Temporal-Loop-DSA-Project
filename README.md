@@ -47,5 +47,5 @@
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/<your-username>/Temporal-Loop-DSA-Project.git
+git clone https://github.com/UrooshMaryam06/Temporal-Loop-DSA-Project.git
 cd Temporal-Loop-DSA-Project
