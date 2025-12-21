@@ -1,14 +1,3 @@
-/************************************************************
- *  TEMPORAL LOOP
- *  A DSA-Based Time Travel Adventure Game
- *
- *  CS-221 Semester Project
- *
- *  NOTE FOR SIR:
- *  Each chapter demonstrates a practical use of
- *  Data Structures & Algorithms integrated with gameplay.
- ************************************************************/
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -29,6 +18,197 @@ void typeWriter(const string &text, int delayMs = 25) {
     cout << endl;
 }
 
+class GameFileManager {
+private:
+    string saveFileName;
+    string progressFileName;
+    string highScoreFileName;
+
+public:
+    GameFileManager() {
+        saveFileName = "temporal_savegame.txt";
+        progressFileName = "temporal_progress.txt";
+        highScoreFileName = "temporal_highscores.txt";
+    }
+
+    // Save complete game state
+    bool saveGameState(string playerName, int currentChapter, int currentRoom, 
+                       int playerScore, int loopCount, 
+                       bool cluesCollected[10], int suspicionLevels[4]) {
+        ofstream outFile(saveFileName);
+        
+        if (!outFile.is_open()) {
+            cout << "\n>>> ERROR: Could not save game!\n";
+            return false;
+        }
+
+        outFile << "PLAYER_NAME:" << playerName << endl;
+        outFile << "CHAPTER:" << currentChapter << endl;
+        outFile << "ROOM:" << currentRoom << endl;
+        outFile << "SCORE:" << playerScore << endl;
+        outFile << "LOOP_COUNT:" << loopCount << endl;
+
+        outFile << "CLUES:";
+        for (int i = 0; i < 10; i++) {
+            outFile << cluesCollected[i] << " ";
+        }
+        outFile << endl;
+
+        outFile << "SUSPICIONS:";
+        for (int i = 0; i < 4; i++) {
+            outFile << suspicionLevels[i] << " ";
+        }
+        outFile << endl;
+
+        outFile.close();
+        
+        cout << "\n==> Game saved successfully to " << saveFileName << "\n";
+        return true;
+    }
+
+    // Load complete game state
+    bool loadGameState(string &playerName, int &currentChapter, int &currentRoom,
+                       int &playerScore, int &loopCount,
+                       bool cluesCollected[10], int suspicionLevels[4]) {
+        ifstream inFile(saveFileName);
+        
+        if (!inFile.is_open()) {
+            return false;
+        }
+
+        string line;
+        
+        getline(inFile, line);
+        if (line.find("PLAYER_NAME:") != string::npos) {
+            playerName = line.substr(12);
+        }
+
+        getline(inFile, line);
+        if (line.find("CHAPTER:") != string::npos) {
+            currentChapter = stoi(line.substr(8));
+        }
+
+        getline(inFile, line);
+        if (line.find("ROOM:") != string::npos) {
+            currentRoom = stoi(line.substr(5));
+        }
+
+        getline(inFile, line);
+        if (line.find("SCORE:") != string::npos) {
+            playerScore = stoi(line.substr(6));
+        }
+
+        getline(inFile, line);
+        if (line.find("LOOP_COUNT:") != string::npos) {
+            loopCount = stoi(line.substr(11));
+        }
+
+        getline(inFile, line);
+        if (line.find("CLUES:") != string::npos) {
+            string clueData = line.substr(6);
+            int idx = 0;
+            for (int i = 0; i < 10 && idx < clueData.length(); i++) {
+                cluesCollected[i] = (clueData[idx] == '1');
+                idx += 2;
+            }
+        }
+
+        getline(inFile, line);
+        if (line.find("SUSPICIONS:") != string::npos) {
+            string suspData = line.substr(11);
+            int idx = 0, suspIdx = 0;
+            string numStr = "";
+            for (int i = 0; i < suspData.length(); i++) {
+                if (suspData[i] == ' ') {
+                    if (numStr != "" && suspIdx < 4) {
+                        suspicionLevels[suspIdx++] = stoi(numStr);
+                        numStr = "";
+                    }
+                } else {
+                    numStr += suspData[i];
+                }
+            }
+            if (numStr != "" && suspIdx < 4) {
+                suspicionLevels[suspIdx] = stoi(numStr);
+            }
+        }
+
+        inFile.close();
+        
+        cout << "\n==> Game loaded: " << playerName << " | Chapter " << currentChapter 
+             << " | Score " << playerScore << "\n";
+        return true;
+    }
+
+    // Save chapter completion log
+    void saveChapterProgress(int chapter, string chapterName, int score) {
+        ofstream outFile(progressFileName, ios::app);
+        
+        if (outFile.is_open()) {
+            outFile << "CHAPTER_" << chapter << ":" << chapterName 
+                   << ":SCORE_" << score << endl;
+            outFile.close();
+        }
+    }
+
+    // Save final high score
+    void saveHighScore(string playerName, int finalScore, int loopCount) {
+        ofstream outFile(highScoreFileName, ios::app);
+        
+        if (outFile.is_open()) {
+            outFile << playerName << "," << finalScore << "," << loopCount << endl;
+            outFile.close();
+            cout << "\n==> High score saved to " << highScoreFileName << "\n";
+        }
+    }
+
+    // Display all high scores
+    void displayHighScores() {
+        ifstream inFile(highScoreFileName);
+        
+        cout << "\n============================================\n";
+        cout << "           HIGH SCORES\n";
+        cout << "============================================\n";
+        
+        if (!inFile.is_open()) {
+            cout << "  No high scores yet!\n";
+            return;
+        }
+
+        string line;
+        int rank = 1;
+        while (getline(inFile, line)) {
+            cout << rank++ << ". " << line << endl;
+        }
+        
+        inFile.close();
+    }
+
+    // Export suspect data to file
+    void exportSuspectData(string names[4], int suspicions[4]) {
+        ofstream outFile("temporal_suspects.txt");
+        
+        if (outFile.is_open()) {
+            outFile << "=== SUSPECT DATABASE EXPORT ===\n\n";
+            for (int i = 0; i < 4; i++) {
+                outFile << "Suspect: " << names[i] << endl;
+                outFile << "Suspicion Level: " << suspicions[i] << "/10" << endl;
+                outFile << "Status: " << (suspicions[i] >= 7 ? "HIGH RISK" : "MONITORING") << endl;
+                outFile << "-----------------------------------\n";
+            }
+            outFile.close();
+            cout << "==> Suspect data exported to temporal_suspects.txt\n";
+        }
+    }
+};
+// Add this as a member variable in Story class:
+GameFileManager fileManager;
+
+// Add this helper method in Story class:
+void autoSaveProgress(int chapter, string chapterName, int score) {
+    fileManager.saveChapterProgress(chapter, chapterName, score);
+    cout << "==> Progress auto-saved.\n";
+}
 // Read choice from user with validation
 int readChoice(int minOption, int maxOption) {
     int choice;
@@ -53,6 +233,8 @@ int readChoice(int minOption, int maxOption) {
 //                                                  Global Game Data
 //                                        ===================================
 
+//Initializing Timeline Function 
+void displayChapterTimeline(int chapter);
 
 
 // ===============================
@@ -110,12 +292,12 @@ int readChoice(int minOption, int maxOption) {
             while (temp) {
                 if (temp->name == name) {
                     temp->suspicionLevel = newLevel;
-                    cout << "\n✓ " << name << " suspicion updated to " << newLevel << "/10\n";
+                    cout << "\n==> " << name << " suspicion updated to " << newLevel << "/10\n";
                     return;
                 }
                 temp = temp->next;
             }
-            cout << "\n✗ Suspect not found!\n";
+            cout << "\n-� Suspect not found!\n";
         }
 
         void sortBySuspicion() {
@@ -152,9 +334,9 @@ int readChoice(int minOption, int maxOption) {
         }
 
         void displaySuspects() {
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║              SUSPECT DATABASE                         ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||              SUSPECT DATABASE                         ||\n";
+            cout << "==============================================================================================================================================================================\n";
             
             if (!head) {
                 cout << "  No suspects identified.\n";
@@ -273,9 +455,9 @@ int readChoice(int minOption, int maxOption) {
         void displayChapterTimeline(int chapter) {
             if (chapter < 0 || chapter >= 10) return;
             
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║         CHAPTER " << chapter << " TIMELINE EVENTS                     ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||         CHAPTER " << chapter << " TIMELINE EVENTS                     ||\n";
+            cout << "==============================================================================================================================================================================\n";
             
             for (int i = 0; i < eventCounts[chapter]; i++) {
                 cout << "  " << (i + 1) << ". " << timelineEvents[chapter][i] << "\n";
@@ -284,8 +466,8 @@ int readChoice(int minOption, int maxOption) {
         }
     };
 
-    // ===============================
-// 3. STACK FOR ACTION HISTORY
+// ===============================
+// STACK FOR ACTION HISTORY
 // ===============================
 struct ActionNode {
     string action;
@@ -329,8 +511,8 @@ public:
     }
 
     void rewindTime(int steps) {
-        cout << "\n🔄 REWINDING TIME...\n";
-        cout << "═══════════════════════════════════════════\n";
+        cout << "\n==> REWINDING TIME...\n";
+        cout << "...........................................................................................................................\n";
         
         int rewound = 0;
         while (!isEmpty() && rewound < steps) {
@@ -339,13 +521,13 @@ public:
             rewound++;
         }
         
-        cout << "✓ Rewound " << rewound << " action(s)\n";
+        cout << "==> Rewound " << rewound << " action(s)\n";
     }
 
     void display() {
-        cout << "\n╔════════════════════════════════════════════════════════╗\n";
-        cout << "║           ACTION HISTORY (Most Recent First)          ║\n";
-        cout << "╚════════════════════════════════════════════════════════╝\n";
+        cout << "\n============================================================================================================================================================================\n";
+        cout << "||           ACTION HISTORY (Most Recent First)          ||\n";
+        cout << "==============================================================================================================================================================================\n";
         
         if (isEmpty()) {
             cout << "  No actions recorded yet.\n";
@@ -362,8 +544,9 @@ public:
         delete[] stack;
     }
 };
-    // ===============================
-// 4. BINARY DECISION TREE (Chapters 7 & 10)
+
+// ===============================
+// BINARY DECISION TREE (Chapters 7 & 10)
 // ===============================
 struct DecisionTreeNode {
     int nodeId;
@@ -454,9 +637,9 @@ public:
     int traverseTree(DecisionTreeNode* node, int &totalScore) {
         if (!node) return 0;
 
-        cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        cout << "\n===========================================================================================================================\n";
         cout << "DECISION NODE #" << node->nodeId << "\n";
-        cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        cout << "=============================================================================================================================\n";
         cout << node->scenario << "\n\n";
         cout << "1. " << node->choiceA << " [Score: " << node->scoreA << "]\n";
         cout << "2. " << node->choiceB << " [Score: " << node->scoreB << "]\n";
@@ -467,7 +650,7 @@ public:
         cin.ignore();
 
         if (choice == 1) {
-            cout << "\n→ You chose: " << node->choiceA << "\n";
+            cout << "\n You chose-> " << node->choiceA << "\n";
             totalScore += node->scoreA;
             cout << "  Score gained: +" << node->scoreA << "\n";
             
@@ -476,7 +659,7 @@ public:
             }
             return node->scoreA;
         } else {
-            cout << "\n→ You chose: " << node->choiceB << "\n";
+            cout << "\n You chose-> " << node->choiceB << "\n";
             totalScore += node->scoreB;
             cout << "  Score gained: +" << node->scoreB << "\n";
             
@@ -501,8 +684,9 @@ public:
         deleteTree(root);
     }
 };
-    // ===============================
-// 5. ROOM MOVEMENT SYSTEM (Array-based Graph)
+
+// ===============================
+// ROOM MOVEMENT SYSTEM (Array-based Graph)
 // ===============================
 class RoomNavigator {
 private:
@@ -533,9 +717,9 @@ private:
 
 public:
     void displayCurrentRoom(int roomId) {
-        cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        cout << "📍 LOCATION: " << roomNames[roomId] << "\n";
-        cout << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        cout << "\n===========================================================================================================================\n";
+        cout << "==> LOCATION: " << roomNames[roomId] << "\n";
+        cout << "=============================================================================================================================\n";
         cout << roomDescriptions[roomId] << "\n\n";
         cout << "Connected rooms:\n";
         
@@ -553,12 +737,12 @@ public:
             if (connections[currentRoom][i] == 1) {
                 count++;
                 if (count == choice) {
-                    cout << "\n✓ Moving to " << roomNames[i] << "...\n";
+                    cout << "\n==> Moving to " << roomNames[i] << "...\n";
                     return i;
                 }
             }
         }
-        cout << "\n✗ Invalid room choice!\n";
+        cout << "\n� Invalid room choice!\n";
         return currentRoom;
     }
     
@@ -567,7 +751,7 @@ public:
     }
 };
     // ===============================
-    // 6. CLUE COLLECTION SYSTEM (Array)
+    // CLUE COLLECTION SYSTEM (Array)
     // ===============================
     class ClueCollector {
     private:
@@ -617,9 +801,9 @@ public:
         }
         
         void displayCollectedClues() {
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║              COLLECTED CLUES                          ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||              COLLECTED CLUES                          ||\n";
+            cout << "==============================================================================================================================================================================\n";
             
             int count = 0;
             for (int i = 0; i < totalClues; i++) {
@@ -639,7 +823,7 @@ public:
     };
 
     // ===============================
-    // 7. INVENTORY SYSTEM (Queue)
+    // INVENTORY SYSTEM (Queue)
     // ===============================
     class InventoryQueue {
     private:
@@ -659,9 +843,9 @@ public:
                 rear = (rear + 1) % capacity;
                 items[rear] = item;
                 size++;
-                cout << "📦 Added to inventory: " << item << "\n";
+                cout << "==> Added to inventory: " << item << "\n";
             } else {
-                cout << "⚠️  Inventory full!\n";
+                cout << ">>> Inventory full!\n";
             }
         }
         
@@ -670,16 +854,16 @@ public:
                 string used = items[front];
                 front = (front + 1) % capacity;
                 size--;
-                cout << "✓ Used item: " << used << "\n";
+                cout << "==> Used item: " << used << "\n";
             } else {
-                cout << "✗ Inventory is empty!\n";
+                cout << ">>> Inventory is empty!\n";
             }
         }
         
         void display() {
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║                 INVENTORY                             ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||               INVENTORY                           ||\n";
+            cout << "==============================================================================================================================================================================\n";
             
             if (size == 0) {
                 cout << "  Inventory is empty.\n";
@@ -696,14 +880,14 @@ public:
     };
 
     // ===============================
-    // 8. MINI-PUZZLES
+    // MINI-PUZZLES
     // ===============================
     class AlarmCodePuzzle {
     public:
         bool solvePuzzle(int &score) {
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║            PUZZLE: ALARM CODE CRACKER                 ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||            PUZZLE: ALARM CODE CRACKER                ||\n";
+            cout << "==============================================================================================================================================================================\n";
             cout << "\nThe alarm requires a 4-digit code.\n";
             cout << "Clue: Chronos founding year. Starts with 19, ends in 84\n\n";
             
@@ -717,7 +901,7 @@ public:
                 cin.ignore();
                 
                 if (code == correctCode) {
-                    cout << "\n✓ ALARM DEACTIVATED!\n";
+                    cout << "\n==> ALARM DEACTIVATED!\n";
                     score += 50;
                     return true;
                 } else {
@@ -727,7 +911,7 @@ public:
                     }
                 }
             }
-            cout << "✗ ALARM TRIGGERED!\n";
+            cout << "==> ALARM TRIGGERED!\n";
             return false;
         }
     };
@@ -735,9 +919,9 @@ public:
     class KeycardSearchPuzzle {
     public:
         bool solvePuzzle(int &score) {
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║         PUZZLE: KEYCARD SEARCH                        ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||       PUZZLE: KEYCARD SEARCH                        ||\n";
+            cout << "==============================================================================================================================================================================\n";
             cout << "\nFind the RED keycard. Search 3 locations max.\n\n";
             
             string locations[8] = {
@@ -763,20 +947,20 @@ public:
                 searches++;
                 
                 if (choice - 1 == keycardLoc) {
-                    cout << "\n✓ KEYCARD FOUND at " << locations[choice - 1] << "!\n";
+                    cout << "\n==> KEYCARD FOUND at " << locations[choice - 1] << "!\n";
                     score += 40;
                     return true;
                 } else {
                     if (searches < 3) {
                         if (choice - 1 < keycardLoc) {
-                            cout << "✗ Not here. Try HIGHER numbers.\n";
+                            cout << "� Not here. Try HIGHER numbers.\n";
                         } else {
-                            cout << "✗ Not here. Try LOWER numbers.\n";
+                            cout << "� Not here. Try LOWER numbers.\n";
                         }
                     }
                 }
             }
-            cout << "✗ Search failed! Keycard was at: " << locations[keycardLoc] << "\n";
+            cout << "� Search failed! Keycard was at: " << locations[keycardLoc] << "\n";
             return false;
         }
     };
@@ -785,10 +969,10 @@ public:
     private:
         bool checkLoop(int depth, int maxDepth, int &score) {
             for (int i = 0; i < depth; i++) cout << "  ";
-            cout << "→ Loop Level " << depth << "\n";
+            cout << "==> Loop Level " << depth << "\n";
             
             if (depth >= maxDepth) {
-                cout << "\n✓ Loop complete!\n";
+                cout << "\n Loop complete!\n";
                 return true;
             }
             
@@ -798,20 +982,20 @@ public:
             cin.ignore();
             
             if (answer == (depth + 1) * 2) {
-                cout << "   ✓ Correct!\n\n";
+                cout << " Correct!\n\n";
                 score += 10;
                 return checkLoop(depth + 1, maxDepth, score);
             } else {
-                cout << "   ✗ Wrong! Loop failed.\n";
+                cout << "� Wrong! Loop failed.\n";
                 return false;
             }
         }
 
     public:
         bool solvePuzzle(int &score) {
-            cout << "\n╔════════════════════════════════════════════════════════╗\n";
-            cout << "║         PUZZLE: RECURSIVE LOOP CHECK                  ║\n";
-            cout << "╚════════════════════════════════════════════════════════╝\n";
+            cout << "\n============================================================================================================================================================================\n";
+            cout << "||         PUZZLE: RECURSIVE LOOP CHECK                  ||\n";
+            cout << "==============================================================================================================================================================================\n";
             cout << "\nNavigate 5 nested time loops. Answer at each level.\n\n";
             
             return checkLoop(0, 5, score);
@@ -819,7 +1003,7 @@ public:
     };
 
     // ===============================
-    // 9. SAVE/LOAD SYSTEM
+    // SAVE/LOAD SYSTEM
     // ===============================
     class SaveSystem {
     public:
@@ -831,7 +1015,7 @@ public:
                 out << room << endl;
                 out << chapter << endl;
                 out.close();
-                cout << "\n💾 Game saved!\n";
+                cout << "\n==> � Game saved!\n";
             }
         }
         
@@ -841,7 +1025,7 @@ public:
                 getline(in, name);
                 in >> score >> room >> chapter;
                 in.close();
-                cout << "\n📂 Game loaded!\n";
+                cout << "\n Game loaded!\n";
                 return true;
             }
             return false;
@@ -865,224 +1049,330 @@ public:
     // Initialize suspects linked list
     SuspectLinkedList suspects;
 
+    ActionStack actionStack;
 
+        // ===============================
+        // CHAPTER 1
+        // ===============================
         void chapter1() {
-            typeWriter("═══════════════════════════════════════════════════");
-            typeWriter("CHAPTER 1 — MEMORY THAT SHOULDN'T EXIST\n");
-            typeWriter("═══════════════════════════════════════════════════\n");
+        // ======== Local game objects ========
+        RoomNavigator roomNavigator;
+        ClueCollector clueCollector;
+        int playerScore = 0;
 
-            typeWriter("You wake up again.\nThe alarms blare. The clocks read 07:00 AM. Everything looks familiar, yet eerily strange.\n");
-            typeWriter("Your mind flashes with memories that shouldn't exist.\n");
-            typeWriter("You recall walking through these halls, seeing the same events unfold over and over, but nobody else remembers.\n");
+        typeWriter("═══════════════════════════════════════════════════\n");
+        typeWriter("CHAPTER 1 — MEMORY THAT SHOULDN'T EXIST\n");
+        typeWriter("═══════════════════════════════════════════════════\n\n");
 
-            typeWriter("A scientist rushes past you:\n");
-            typeWriter("\"We need to stabilize the Temporal Engine!\" he shouts, panic in his voice.\n");
+        typeWriter("You wake up again.\n");
+        typeWriter("The alarms blare. The clocks read 07:00 AM.\n");
+        typeWriter("Everything looks familiar, yet eerily strange.\n\n");
 
-            typeWriter("You remember exactly what happens next. The alarms, the system errors, the critical failure...\n");
-            typeWriter("But this time, you are aware. You are the only variable that did not reset.\n");
+        typeWriter("Your mind flashes with memories that shouldn't exist.\n");
+        typeWriter("You've lived this moment before.\n\n");
 
-            typeWriter("Every action you take from this point onward is recorded — because memory is your greatest weapon.\n");
-            typeWriter("You feel a strange energy coursing through your mind as you realize you can manipulate the loop.\n");
+        typeWriter("A scientist rushes past you:\n");
+        typeWriter("\"We need to stabilize the Temporal Engine!\"\n\n");
 
-            typeWriter("Do you:\n");
-            typeWriter("1. Head to the Control Hall to check the Temporal Engine.\n");
-            typeWriter("2. Investigate the Research Wing for clues about what caused the loops.\n");
+        typeWriter("You are the only variable that did not reset.\n");
+        typeWriter("Memory is your greatest weapon.\n\n");
 
-            typeWriter("\n--- End of Chapter 1 ---\n");
+        typeWriter("You glance around. Where do you want to go?\n");
+
+        int currentRoom = 0; // Start at Control Hall
+        bool chapterActive = true;
+
+        while (chapterActive) {
+            roomNavigator.displayCurrentRoom(currentRoom);
+            cout << "\nEnter choice (room number to move, 0 to search for clues, 9 to end chapter): ";
+            int choice;
+            cin >> choice;
+
+            if (choice == 9) {
+                typeWriter("\nYou pause and prepare for the next steps...\n");
+                chapterActive = false;
+            } else if (choice == 0) {
+                clueCollector.searchRoom(currentRoom, playerScore);
+            } else {
+                currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
+            }
         }
 
-        void chapter2() {
-            typeWriter("═══════════════════════════════════════════════════");
-            typeWriter("CHAPTER 2 — THE RESEARCH WING AND FIRST CLUES\n");
-            typeWriter("═══════════════════════════════════════════════════\n");
+        typeWriter("\nChapter summary:\n");
+        typeWriter("Score: " + to_string(playerScore) + "\n");
+        clueCollector.displayCollectedClues();
 
-            typeWriter("You decide to investigate the Research Wing.\n");
-            typeWriter("Rows of labs stretch before you, filled with strange machinery and flickering monitors.\n");
+        typeWriter("\n═══════════════════════════════════════════════════\n");
+        typeWriter("END OF CHAPTER 1\n");
+        typeWriter("═══════════════════════════════════════════════════\n");
+    }
 
-            typeWriter("A voice echoes in your memory:\n");
-            typeWriter("\"The loops were not an accident... someone is controlling the Temporal Engine from within.\"\n");
-            typeWriter("Your heart races. Could one of the staff be responsible?\n");
 
-            typeWriter("You notice scattered papers and a half-open terminal.\n");
-            typeWriter("One paper catches your eye. It reads:\n");
-            typeWriter("\"If anyone finds this note, know that it was intentional. —Dr. Unknown\"\n");
+    void chapter2() {
+        typeWriter("═══════════════════════════════════════════════════\n");
+        typeWriter("CHAPTER 2 — THE RESEARCH WING AND FIRST CLUES\n");
+        typeWriter("═══════════════════════════════════════════════════\n\n");
 
-            typeWriter("You also spot a lab assistant working on a console, oblivious to your presence.\n");
-            typeWriter("Do you:\n");
-            typeWriter("1. Approach the assistant and ask questions.\n");
-            typeWriter("2. Continue searching the lab for more clues without alerting anyone.\n");
+        typeWriter("You decide to investigate the Research Wing.\n");
+        typeWriter("Rows of labs stretch before you, filled with strange machinery and flickering monitors.\n\n");
 
-            typeWriter("You move quietly, scanning the shelves and tables.\n");
-            typeWriter("Among the scattered lab notes, you discover a **red security clearance keycard**.\n");
-            typeWriter("This could allow access to restricted areas — perhaps even the Temporal Engine control room.\n");
+        // STORY MEMORY
+        actionStack.push("Entered Research Wing", 10, "Research Wing", 2);
 
-            typeWriter("Your awareness of the loop allows you to memorize the positions of all clues and people.\n");
-            typeWriter("You realize that gathering evidence is your path to understanding who is behind the loops.\n");
+        typeWriter("A voice echoes in your memory:\n");
+        typeWriter("\"The loops were not an accident... someone is controlling the Temporal Engine from within.\"\n\n");
 
-            typeWriter("\nChoices made in this chapter will affect later events.\n");
-            typeWriter("--- End of Chapter 2 ---\n");
+        typeWriter("Your heart races. Could one of the staff be responsible?\n\n");
+
+        typeWriter("You notice scattered papers and a half-open terminal.\n");
+        typeWriter("One paper catches your eye:\n");
+        typeWriter("\"If anyone finds this note, know that it was intentional. —Dr. Unknown\"\n\n");
+
+        // CLUE FOUND
+        actionStack.push("Found Dr. Unknown note", 12, "Research Wing", 2);
+
+        typeWriter("You spot a lab assistant working on a console.\n\n");
+        typeWriter("What do you do?\n");
+        typeWriter("1. Approach the assistant and ask questions.\n");
+        typeWriter("2. Search the lab quietly for more clues.\n");
+
+        int choice;
+        cout << "\nEnter choice: ";
+        cin >> choice;
+
+        if (choice == 1) {
+            actionStack.push("Questioned lab assistant", 15, "Research Wing", 2);
+            typeWriter("\nThe assistant looks nervous and avoids eye contact...\n");
+            typeWriter("Something is clearly being hidden.\n");
         }
+        else if (choice == 2) {
+            actionStack.push("Searched lab secretly", 15, "Research Wing", 2);
+            typeWriter("\nYou move quietly between tables and shelves...\n");
+        }
+        else {
+            typeWriter("\nInvalid choice. Timeline destabilizes slightly.\n");
+        }
+
+        typeWriter("\nAmong the scattered lab notes, you discover a RED SECURITY CLEARANCE KEYCARD.\n");
+        typeWriter("This could grant access to restricted areas.\n\n");
+
+        // IMPORTANT ITEM
+        actionStack.push("Obtained red security keycard", 18, "Research Wing", 2);
+
+        typeWriter("Your awareness of the loop allows you to memorize everything.\n");
+        typeWriter("Evidence is your weapon.\n\n");
+
+        typeWriter("Choices made here will affect future chapters.\n");
+        typeWriter("--- End of Chapter 2 ---\n");
+    }
+
 
     void chapter3() {
+        typeWriter("═══════════════════════════════════════════════════\n");
+        typeWriter("CHAPTER 3 — SECURITY SECTOR: SHADOWS AND SUSPECTS\n");
+        typeWriter("═══════════════════════════════════════════════════\n\n");
+
+        typeWriter("The security doors hiss as you enter the Security Sector.\n");
+        typeWriter("Armed personnel move with precision, unaware that you know this layout by heart.\n");
+        typeWriter("Monitors display feeds from every corner of the facility, but one screen flickers oddly.\n");
+
+        actionStack.push("Entered Security Sector", 20, "Security Sector", 3);
+
+        typeWriter("A familiar voice in your mind whispers:\n");
+        typeWriter("\"Commander Hayes always seems too calm. Something about him doesn’t fit.\"\n");
+
+        typeWriter("You notice a RED SECURITY CLEARANCE KEYCARD in the drawer.\n");
+        actionStack.push("Found red security keycard (duplicate)", 22, "Security Sector", 3);
+
+        typeWriter("\nYou check a terminal with unusual activity logs:\n");
+        typeWriter("- 07:30 — Unauthorized override detected.\n");
+        typeWriter("- 07:45 — Temporal Engine diagnostics accessed remotely.\n");
+
+        actionStack.push("Checked unusual activity logs", 23, "Security Sector", 3);
+
+        typeWriter("\nYou overhear a whispered conversation:\n");
+        typeWriter("\"The temporal containment must remain intact. Any interference will jeopardize the project.\"\n");
+
+        actionStack.push("Overheard conversation", 24, "Security Sector", 3);
+
+        typeWriter("\nWhile scanning the sector, you discover:\n");
+        typeWriter("- A suspiciously unmarked audio recorder behind a console.\n");
+        typeWriter("- A lab notebook with encrypted codes.\n");
+        typeWriter("- Personnel logs highlighting unusual overtime shifts.\n");
+
+        actionStack.push("Found audio recorder", 25, "Security Sector", 3);
+        actionStack.push("Found lab notebook with encrypted codes", 26, "Security Sector", 3);
+        actionStack.push("Checked personnel logs for anomalies", 27, "Security Sector", 3);
+
+        // Update suspicion levels
+        suspects.updateSuspicion("Commander Hayes", 7);
+        suspects.updateSuspicion("Dr. Chen Wei", 9);
+        suspects.updateSuspicion("Sarah Mitchell", 6);
+
+        suspects.sortBySuspicion();
+        suspects.displaySuspects(); // optional
+
+        typeWriter("\nEvery discovery increases your suspicion levels.\n");
+        typeWriter("Memory of the loop gives you the advantage to remember every detail.\n");
+
+        typeWriter("\nChoices in this chapter will influence suspects' suspicion levels in future loops.\n");
+        typeWriter("--- End of Chapter 3 ---\n");
+    }
 
 
-    typeWriter("═══════════════════════════════════════════════════");
-    typeWriter("CHAPTER 3 — SECURITY SECTOR: SHADOWS AND SUSPECTS\n");
-    typeWriter("═══════════════════════════════════════════════════\n");
 
-    typeWriter("The security doors hiss as you enter the Security Sector.\n");
-    typeWriter("Armed personnel move with precision, unaware that you know this layout by heart.\n");
-    typeWriter("Monitors display feeds from every corner of the facility, but one screen flickers oddly.\n");
-
-    typeWriter("A familiar voice in your mind whispers:\n");
-    typeWriter("\"Commander Hayes always seems too calm. Something about him doesn’t fit.\"\n");
-
-    typeWriter("As you move between consoles, you notice a **red security clearance keycard** in the drawer.\n");
-    typeWriter("This matches what you found in the Research Wing — clearly someone is trying to manipulate access.\n");
-
-    typeWriter("Your eyes catch a terminal with unusual activity logs:\n");
-    typeWriter("- Timestamp 07:30 — Unauthorized override detected.\n");
-    typeWriter("- Timestamp 07:45 — Temporal Engine diagnostics accessed remotely.\n");
-
-    typeWriter("It becomes clear: someone is tampering with the timeline.\n");
-
-    // Scenario choice: player observes clues — update suspicion levels
-    typeWriter("\nYou quietly follow a security officer and overhear a whispered conversation:");
-    typeWriter("\"The temporal containment must remain intact. Any interference will jeopardize the project.\"\n");
-
-    typeWriter("You jot down notes in your mind — these could incriminate a suspect later.\n");
-
-    typeWriter("\nWhile scanning the sector, you discover:");
-    typeWriter("- A suspiciously unmarked audio recorder behind a console.");
-    typeWriter("- A lab notebook with encrypted codes.");
-    typeWriter("- Personnel logs highlighting unusual overtime shifts.\n");
-
-    // Update suspicion levels based on discoveries
-    suspects.updateSuspicion("Commander Hayes", 7);  // calm but secretive
-    suspects.updateSuspicion("Dr. Chen Wei", 9);     // high access to Temporal Engine
-    suspects.updateSuspicion("Sarah Mitchell", 6);   // anomalies in system logs
-
-    // Sort suspects by suspicion for next loops
-    suspects.sortBySuspicion();
-
-    // Display updated suspect list (optional, for debugging or player awareness)
-    suspects.displaySuspects();
-
-    typeWriter("\nEvery discovery increases your suspicion:");
-    typeWriter("- Commander Hayes: calm but secretive.");
-    typeWriter("- Dr. Chen Wei: high access to the Temporal Engine.");
-    typeWriter("- Sarah Mitchell: technical anomalies in system logs.\n");
-
-    typeWriter("You realize that piecing together these clues is essential to uncovering the mastermind.\n");
-    typeWriter("Memory of the loop gives you the advantage to remember every detail and avoid mistakes.\n");
-
-    typeWriter("\nChoices in this chapter will influence the suspects' suspicion levels in future loops.\n");
-    typeWriter("--- End of Chapter 3 ---\n");
-}
-
-
+  // ===============================
+// CHAPTER 4
+// ===============================
 void chapter4() {
-    typeWriter("═══════════════════════════════════════════════════");
-    typeWriter("CHAPTER 4 — DATA ARCHIVES: SECRETS OF THE TEMPORAL ENGINE\n");
+    // ======== Local game objects ========
+    RoomNavigator roomNavigator;
+    ClueCollector clueCollector;
+    int playerScore = 0;
+
     typeWriter("═══════════════════════════════════════════════════\n");
+    typeWriter("CHAPTER 4 — DATA ARCHIVES: SECRETS OF THE TEMPORAL ENGINE\n");
+    typeWriter("═══════════════════════════════════════════════════\n\n");
 
     typeWriter("You enter the Data Archives, the temperature drops slightly as the massive server racks hum.\n");
     typeWriter("Rows upon rows of encrypted data stretch into darkness, flickering with dim red lights.\n");
 
+    actionStack.push("Entered Data Archives", 40, "Data Archives", 4);
+
     typeWriter("Your memory from previous loops guides your steps — you know where the most sensitive files are.\n");
     typeWriter("A digital lock panel blinks: access code required.\n");
 
-    typeWriter("You recall a note you found in the Research Wing — it hints at a master access code.\n");
-    typeWriter("By combining the clue from the note and the security logs, you deduce the code.\n");
+    actionStack.push("Approached digital lock panel", 41, "Data Archives", 4);
 
-    typeWriter("Access granted. The terminal lights up with project files: 'Project Ouroboros', 'Temporal Engine Logs', 'Unauthorized Overrides'.\n");
+    int currentRoom = 2; // Data Archives
+    bool chapterActive = true;
 
-    typeWriter("As you scroll through the logs, a chilling realization hits you:\n");
-    typeWriter("\"Someone has been manipulating the loops, forcing events to happen at precise times.\"\n");
+    while (chapterActive) {
+        roomNavigator.displayCurrentRoom(currentRoom);
+        cout << "\nEnter choice (room number to move, 0 to search for clues, 9 to end chapter): ";
+        int choice;
+        cin >> choice;
 
-    typeWriter("You find an **audio log** marked with a timestamp 06:45 — the voice warns: \n");
-    typeWriter("\"Do not interfere. The timeline is fragile.\"\n");
+        if (choice == 9) {
+            typeWriter("\nChapter 4 ends here, but your choices will ripple through the loops.\n");
+            chapterActive = false;
+        } else if (choice == 0) {
+            clueCollector.searchRoom(currentRoom, playerScore);
 
-    typeWriter("Another log points directly to Dr. Chen Wei's manipulations in the Temporal Engine control sequences.\n");
+            // Story-driven events when searching Data Archives
+            if (currentRoom == 2) {
+                typeWriter("\nYou recall a note you found in the Research Wing — it hints at a master access code.\n");
+                actionStack.push("Recalled master access code clue", 42, "Data Archives", 4);
 
-    typeWriter("\nDo you:\n");
-    typeWriter("1. Copy all critical files to your portable drive for later investigation.\n");
-    typeWriter("2. Attempt to trace the current location of the manipulator using system logs.\n");
+                typeWriter("Access granted. The terminal lights up with project files: 'Project Ouroboros', 'Temporal Engine Logs', 'Unauthorized Overrides'.\n");
+                actionStack.push("Accessed critical project files", 43, "Data Archives", 4);
 
-    typeWriter("While investigating, a sudden **alarm** blares across the facility.\n");
-    typeWriter("Emergency lights flash red; the Temporal Engine is showing early signs of instability.\n");
+                typeWriter("As you scroll through the logs, a chilling realization hits you:\n");
+                typeWriter("\"Someone has been manipulating the loops, forcing events to happen at precise times.\"\n");
+                actionStack.push("Realized timeline manipulation", 44, "Data Archives", 4);
 
-    typeWriter("Your heart races. Every second counts.\n");
-    typeWriter("Memory of the loops allows you to recall subtle discrepancies in the system readings.\n");
+                typeWriter("You find an **audio log** marked 06:45 — the voice warns: \n");
+                typeWriter("\"Do not interfere. The timeline is fragile.\"\n");
+                actionStack.push("Found audio log warning", 45, "Data Archives", 4);
 
-    typeWriter("\nYou quickly:\n");
-    typeWriter("- Mark the critical timeline events in your mind.\n");
-    typeWriter("- Collect all discoverable clues: corrupted logs, encrypted lab notebooks, and audio recordings.\n");
-    typeWriter("- Record every action in your action history for future loops.\n");
+                typeWriter("Another log points directly to Dr. Chen Wei's manipulations in the Temporal Engine control sequences.\n");
+                actionStack.push("Discovered Dr. Chen Wei's manipulations", 46, "Data Archives", 4);
 
-    typeWriter("\nA faint shadow moves in the corner — someone is watching. Could it be Dr. Chen Wei?\n");
+                suspects.updateSuspicion("Dr. Chen Wei", 9);
+                suspects.displaySuspects();
+            }
 
-    // UPDATE SUSPICION BASED ON DISCOVERIES
-    suspects.updateSuspicion("Dr. Chen Wei", 9);  // example: after logs discovery
-    suspects.displaySuspects();
+        } else {
+            currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
+        }
+    }
 
-    typeWriter("\nChapter 4 ends here, but your choices will ripple through the loops.\n");
-    typeWriter("--- End of Chapter 4 ---\n");
+    // Show summary of collected clues
+    typeWriter("\nChapter summary:\n");
+    typeWriter("Score: " + to_string(playerScore) + "\n");
+    clueCollector.displayCollectedClues();
+
+    typeWriter("\n═══════════════════════════════════════════════════\n");
+    typeWriter("END OF CHAPTER 4\n");
+    typeWriter("═══════════════════════════════════════════════════\n");
 }
 
+
 void chapter5() {
-    typeWriter("═══════════════════════════════════════════════════");
-    typeWriter("CHAPTER 5 — RESEARCH WING: CONFRONTATION AND CONSEQUENCES\n");
+    // ======== Local game objects ========
+    RoomNavigator roomNavigator;
+    ClueCollector clueCollector;
+    int playerScore = 0;
+
     typeWriter("═══════════════════════════════════════════════════\n");
+    typeWriter("CHAPTER 5 — RESEARCH WING: CONFRONTATION AND CONSEQUENCES\n");
+    typeWriter("═══════════════════════════════════════════════════\n\n");
 
-    typeWriter("You move to the Research Wing. The room is dimly lit, the hum of machinery vibrating through the floor.\n");
-    typeWriter("Familiar lab equipment is scattered around — vials, monitors, experimental consoles — but something feels off.\n");
+    int currentRoom = 1; // Research Wing
+    bool chapterActive = true;
 
-    typeWriter("Your memory tells you: Dr. Chen Wei was here before you, leaving traces of unauthorized temporal manipulations.\n");
+    while (chapterActive) {
+        roomNavigator.displayCurrentRoom(currentRoom);
+        cout << "\nEnter choice (room number to move, 0 to search for clues, 9 to end chapter): ";
+        int choice;
+        cin >> choice;
 
-    typeWriter("Suddenly, a shadow moves — it's Dr. Chen Wei!\n");
-    typeWriter("He glares at you: \"I knew someone would notice. But it’s too late to stop the sequence.\"\n");
+        if (choice == 9) {
+            typeWriter("\nChapter 5 ends here — events in the Research Wing will affect future loops.\n");
+            chapterActive = false;
+        } else if (choice == 0) {
+            clueCollector.searchRoom(currentRoom, playerScore);
 
-    typeWriter("\nDo you:\n");
-    typeWriter("1. Confront Dr. Chen Wei directly and demand an explanation.\n");
-    typeWriter("2. Observe silently and gather more evidence before acting.\n");
+            // Story-driven events when searching Research Wing
+            if (currentRoom == 1) {
+                typeWriter("\nYou find a terminal with partial override codes — this may allow stabilizing the engine temporarily.\n");
+                actionStack.push("Found terminal with partial override codes", 57, "Research Wing", 5);
 
-    typeWriter("\nIf you choose to confront directly:");
-    typeWriter("\"Explain yourself! Why are you manipulating the loops?\" you demand.\n");
-    typeWriter("Dr. Chen Wei smirks: \"The future is fragile. Only I can ensure it doesn't collapse.\"\n");
-    typeWriter("He activates a console, triggering a sudden spike in the Temporal Engine readings.\n");
-    typeWriter("Warning lights flash: the facility shakes slightly — a critical event has begun!\n");
+                typeWriter("You quietly scan consoles, noting timestamps of unauthorized actions.\n");
+                actionStack.push("Observed and gathered evidence silently", 54, "Research Wing", 5);
+            }
 
-    typeWriter("\nIf you choose to gather evidence:");
-    typeWriter("You quietly scan the consoles, copying encrypted data and noting timestamps of unauthorized actions.\n");
-    typeWriter("Dr. Chen Wei is unaware for now, giving you an advantage for future loops.\n");
-    typeWriter("Memory of previous loops allows you to record this without triggering suspicion.\n");
+        } else {
+            currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
 
-    typeWriter("\nRegardless of choice, critical events occur:\n");
-    typeWriter("- Temporal Engine instability rises.\n");
-    typeWriter("- Security alerts sound across the facility.\n");
-    typeWriter("- Your action history records every step for future loops.\n");
+            // Story-triggered events when moving
+            if (currentRoom == 1) {
+                typeWriter("\nYou notice traces of unauthorized temporal manipulation.\n");
+                actionStack.push("Noticed traces of unauthorized manipulation", 51, "Research Wing", 5);
+            }
+        }
+    }
 
-    typeWriter("\nYou find a terminal with partial override codes — this may allow stabilizing the engine temporarily.\n");
-
-    // UPDATE SUSPICION BASED ON CONFRONTATION/OBSERVATION
-    suspects.updateSuspicion("Dr. Chen Wei", 10);  // fully suspicious after Chapter 5
+    // Update suspicion based on chapter events
+    suspects.updateSuspicion("Dr. Chen Wei", 10);
     suspects.sortBySuspicion();
     suspects.displaySuspects();
 
-    typeWriter("\nChapter 5 ends here — the Research Wing has revealed the manipulator's true intentions, and the Temporal Engine teeters on the edge.\n");
-    typeWriter("--- End of Chapter 5 ---\n");
+    // Chapter summary
+    typeWriter("\nChapter summary:\n");
+    typeWriter("Score: " + to_string(playerScore) + "\n");
+    clueCollector.displayCollectedClues();
+
+    typeWriter("\n═══════════════════════════════════════════════════\n");
+    typeWriter("END OF CHAPTER 5\n");
+    typeWriter("═══════════════════════════════════════════════════\n");
 }
 
+    void chapter6() {
+    // ======== Local game objects ========
+    RoomNavigator roomNavigator;
+    ClueCollector clueCollector;
+    InventoryQueue inventory;
+    int playerScore = 0;
 
-// Assume this is global or in main scope
-SuspectLinkedList suspects;
-
-void chapter6() {
-    typeWriter("══════════════════════════════════════════════");
-    typeWriter("CHAPTER 6 — PEOPLE WHO CHANGE");
     typeWriter("══════════════════════════════════════════════\n");
+    typeWriter("CHAPTER 6 — PEOPLE WHO CHANGE\n");
+    typeWriter("══════════════════════════════════════════════\n\n");
 
+    int currentRoom = 3; // Corridor observation area
+    bool chapterActive = true;
+
+    // Story intro
     typeWriter("The corridor is quieter than before.");
     typeWriter("No alarms.");
     typeWriter("No rushing footsteps.");
@@ -1110,7 +1400,6 @@ void chapter6() {
     typeWriter("She doesn’t look at you.\n");
 
     typeWriter("Your memory stirs.\n");
-
     typeWriter("Last loop, Hayes spoke without hesitation.");
     typeWriter("Two loops ago, Sarah refused to speak at all.");
     typeWriter("And Markov...");
@@ -1120,18 +1409,32 @@ void chapter6() {
     typeWriter("Suspicion is not fixed.");
     typeWriter("It evolves.\n");
 
-    // Update suspicion levels
-    suspects.updateSuspicion("Commander Hayes", 6);  // Increased
-    suspects.updateSuspicion("Sarah Mitchell", 5);   // Flagged
-    suspects.updateSuspicion("Dr. Elena Markov", 7); // Unresolved / keep high
+    typeWriter("[SYSTEM] Suspect list updated.");
+    typeWriter("[DSA] Linked List modified dynamically.\n");
 
-    // Sort suspects based on suspicion
-    suspects.sortBySuspicion();
+    typeWriter("Commander Hayes notices you watching.");
+    typeWriter("\"You shouldn’t be here,\" he says.");
+    typeWriter("His voice trembles — just slightly.\n");
 
-    // Display suspects for debugging / story purposes
-    suspects.displaySuspects();
+    typeWriter("Sarah finally speaks.");
+    typeWriter("\"Did the loop reset again?\"");
+    typeWriter("Her eyes widen as she realizes what she said.\n");
 
-    typeWriter("[SYSTEM] Suspect list updated and sorted.\n");
+    typeWriter("Dr. Markov turns toward you.");
+    typeWriter("\"Careful,\" she says softly.");
+    typeWriter("\"Some truths damage the mind beyond repair.\"\n");
+
+    typeWriter("Your heart pounds.\n");
+    typeWriter("They remember fragments.");
+    typeWriter("Not fully.");
+    typeWriter("But enough.\n");
+
+    typeWriter("You silently adjust your internal list:\n");
+    typeWriter("• Hayes — suspicion increased.");
+    typeWriter("• Sarah — flagged for observation.");
+    typeWriter("• Markov — unresolved.\n");
+
+    typeWriter("[DSA] Linked List reordered based on suspicion level.\n");
 
     typeWriter("A warning flashes on a nearby terminal:\n");
     typeWriter("\"TEMPORAL MEMORY DEVIATION DETECTED\"\n");
@@ -1146,114 +1449,155 @@ void chapter6() {
     typeWriter("And in broken time...");
     typeWriter("Change is dangerous.\n");
 
-    typeWriter("══════════════════════════════════════════════");
-    typeWriter("END OF CHAPTER 6");
+    // ===== Interactive gameplay loop =====
+    while (chapterActive) {
+        roomNavigator.displayCurrentRoom(currentRoom);
+        cout << "\nEnter choice (room number to move, 0 to search for clues, 9 to end chapter): ";
+        int choice;
+        cin >> choice;
+
+        if (choice == 9) {
+            typeWriter("\nChapter 6 ends here.\n");
+            chapterActive = false;
+        } else if (choice == 0) {
+            clueCollector.searchRoom(currentRoom, playerScore);
+
+            // Dynamic story events while searching
+            typeWriter("\nThrough the observation glass, you notice subtle changes in the people’s behavior.\n");
+            actionStack.push("Observed people differently", 62, "Observation Glass", 6);
+
+            // Update suspicion dynamically
+            suspects.updateSuspicion("Commander Hayes", 6);
+            suspects.updateSuspicion("Sarah Mitchell", 5);
+            suspects.updateSuspicion("Dr. Elena Markov", 7);
+            suspects.sortBySuspicion();
+            suspects.displaySuspects();
+
+            typeWriter("[SYSTEM] Suspect list updated and sorted.\n");
+            actionStack.push("Updated suspicion levels", 67, "Corridor", 6);
+
+        } else {
+            currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
+        }
+    }
+
+    // Chapter summary
+    typeWriter("\nChapter summary:\n");
+    typeWriter("Score: " + to_string(playerScore) + "\n");
+    clueCollector.displayCollectedClues();
+    inventory.display();
+
+    typeWriter("══════════════════════════════════════════════\n");
+    typeWriter("END OF CHAPTER 6\n");
     typeWriter("══════════════════════════════════════════════\n");
 }
 
+ // ===============================
+// CHAPTER 7
+// ===============================
 void chapter7() {
-    typeWriter("══════════════════════════════════════════════");
-    typeWriter("CHAPTER 7 — THE CHOICE THAT BREAKS TIME");
+    // ======== Local game objects ========
+    RoomNavigator roomNavigator;
+    ClueCollector clueCollector;
+    int playerScore = 0;
+
     typeWriter("══════════════════════════════════════════════\n");
+    typeWriter("CHAPTER 7 — THE CHOICE THAT BREAKS TIME\n");
+    typeWriter("══════════════════════════════════════════════\n\n");
 
     typeWriter("The system does not reset.\n");
+    actionStack.push("Observed loop not resetting", 70, "Temporal Core", 7);
 
-    typeWriter("For the first time, the loop hesitates.");
-    typeWriter("Milliseconds stretch into something heavier.");
-    typeWriter("Almost like fear.\n");
+    typeWriter("For the first time, the loop hesitates.\nMilliseconds stretch into something heavier.\nAlmost like fear.\n");
+    actionStack.push("Felt loop hesitation", 71, "Temporal Core", 7);
 
-    typeWriter("A terminal lights up ahead.");
-    typeWriter("Its screen flickers — unstable.\n");
+    typeWriter("A terminal lights up ahead.\nIts screen flickers — unstable.\n[SYSTEM] TEMPORAL CORE ACCESS GRANTED\n");
+    actionStack.push("Gained temporal core access", 72, "Temporal Core", 7);
 
-    typeWriter("[SYSTEM] TEMPORAL CORE ACCESS GRANTED\n");
+    typeWriter("Every loop you survived flashes before you.\nEvery mistake.\nEvery death narrowly avoided.\n");
+    actionStack.push("Reflected on past loops", 73, "Temporal Core", 7);
 
-    typeWriter("You step closer.");
-    typeWriter("Every loop you survived flashes before you.");
-    typeWriter("Every mistake.");
-    typeWriter("Every death narrowly avoided.\n");
+    typeWriter("The console displays a branching diagram.\nNot lines.\nNot paths.\nChoices.\n[DSA] Binary Decision Tree initialized.\n");
+    actionStack.push("Decision tree observed", 74, "Temporal Core", 7);
 
-    typeWriter("The console displays a branching diagram.\n");
-    typeWriter("Not lines.");
-    typeWriter("Not paths.");
-    typeWriter("Choices.\n");
+    typeWriter("Left branch:\n\"Terminate the Temporal Loop\"\n— All systems reset permanently.\n— No more rewinds.\n— No second chances.\n");
+    typeWriter("Right branch:\n\"Stabilize the Temporal Loop\"\n— Infinite corrections possible.\n— Memory fragments will spread.\n— Time will never truly heal.\n");
+    actionStack.push("Branches observed: Terminate or Stabilize", 75, "Temporal Core", 7);
 
-    typeWriter("[DSA] Binary Decision Tree initialized.\n");
+    typeWriter("You remember Chapter One.\nThe alarm.\nThe panic.\nThe first reset you didn’t understand.\nBack then, time was a tool.\nNow... It is a weapon.\n");
+    actionStack.push("Remembered Chapter 1 events", 76, "Temporal Core", 7);
 
-    typeWriter("Left branch:");
-    typeWriter("\"Terminate the Temporal Loop\"");
-    typeWriter("— All systems reset permanently.");
-    typeWriter("— No more rewinds.");
-    typeWriter("— No second chances.\n");
+    typeWriter("A warning appears in red:\n\"DECISION NODE LOCKING IN 10 SECONDS\"\n");
+    actionStack.push("Decision node warning", 77, "Temporal Core", 7);
 
-    typeWriter("Right branch:");
-    typeWriter("\"Stabilize the Temporal Loop\"");
-    typeWriter("— Infinite corrections possible.");
-    typeWriter("— Memory fragments will spread.");
-    typeWriter("— Time will never truly heal.\n");
+    typeWriter("Dr. Markov’s voice echoes over the intercom.\n\"You think this is about saving them,\" she says.\n\"It’s about deciding who deserves tomorrow.\"\n");
+    typeWriter("Commander Hayes pounds on the sealed door.\n\"End it!\" he shouts.\n\"No one should live like this!\"\n");
+    typeWriter("Sarah whispers through a broken channel.\n\"If you stop it…\"\n\"Will we forget you?\"\n");
+    actionStack.push("Heard intercom messages", 78, "Temporal Core", 7);
 
-    typeWriter("Your hands tremble.\n");
+    typeWriter("This is no longer a system problem.\nIt is a moral one.\n");
 
-    typeWriter("You remember Chapter One.");
-    typeWriter("The alarm.");
-    typeWriter("The panic.");
-    typeWriter("The first reset you didn’t understand.\n");
-
-    typeWriter("Back then, time was a tool.");
-    typeWriter("Now...");
-    typeWriter("It is a weapon.\n");
-
-    typeWriter("A warning appears in red:\n");
-    typeWriter("\"DECISION NODE LOCKING IN 10 SECONDS\"\n");
-
-    typeWriter("Dr. Markov’s voice echoes over the intercom.");
-    typeWriter("\"You think this is about saving them,\" she says.");
-    typeWriter("\"It’s about deciding who deserves tomorrow.\"\n");
-
-    typeWriter("Commander Hayes pounds on the sealed door.");
-    typeWriter("\"End it!\" he shouts.");
-    typeWriter("\"No one should live like this!\"\n");
-
-    typeWriter("Sarah whispers through a broken channel.");
-    typeWriter("\"If you stop it…\"");
-    typeWriter("\"Will we forget you?\"\n");
-
-    typeWriter("Your breath catches.\n");
-
-    typeWriter("This is no longer a system problem.");
-    typeWriter("It is a moral one.\n");
-
-    // Optional: update suspicion based on choices here as well
+    // Update suspicion dynamically
     suspects.updateSuspicion("Commander Hayes", 7);
     suspects.updateSuspicion("Sarah Mitchell", 6);
-
     suspects.sortBySuspicion();
     suspects.displaySuspects();
 
-    typeWriter("[DSA] Traversing Decision Tree and suspect evaluation complete.\n");
+    // === INTERACTIVE ROOM AND CLUE NAVIGATION IN TEMPORAL CORE ===
+    int currentRoom = 0; // Temporal Core starting point
+    bool chapterActive = true;
 
-    typeWriter("Left or right.");
-    typeWriter("Destroy or preserve.");
-    typeWriter("Freedom or control.\n");
+    while (chapterActive) {
+        roomNavigator.displayCurrentRoom(currentRoom);
+        cout << "\nEnter choice (room number to move, 0 to search for clues, 9 to proceed to decision): ";
+        int choice;
+        cin >> choice;
 
-    typeWriter("Your finger hovers over the input key.\n");
+        if (choice == 9) {
+            typeWriter("\nYou approach the decision node to make your choice...\n");
+            chapterActive = false;
+        } else if (choice == 0) {
+            clueCollector.searchRoom(currentRoom, playerScore);
+        } else {
+            currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
+        }
+    }
 
-    typeWriter("Once chosen...");
-    typeWriter("There will be no rewind.\n");
+    // === BINARY DECISION TREE INTEGRATION ===
+    int totalScore = 0;
+    BinaryDecisionTree decisionTree;
+    decisionTree.playChapter7(totalScore);
 
-    typeWriter("Time holds its breath.\n");
+    typeWriter("\nYour choices in the decision tree added a total score of: " + to_string(totalScore) + "\n");
 
-    typeWriter("══════════════════════════════════════════════");
-    typeWriter("END OF CHAPTER 7");
+    // Show chapter summary with clues
+    typeWriter("\nChapter summary:\n");
+    typeWriter("Score: " + to_string(playerScore) + "\n");
+    clueCollector.displayCollectedClues();
+
     typeWriter("══════════════════════════════════════════════\n");
- }
+    typeWriter("END OF CHAPTER 7\n");
+    typeWriter("══════════════════════════════════════════════\n");
+}
 
-        void chapter8(int depth = 1) {
-        typeWriter("══════════════════════════════════════════════");
-        typeWriter("CHAPTER 8 — THE LOOP WITHIN THE LOOP");
+
+
+    void chapter8(int depth = 1) {
+        // ======== Local game objects ========
+        RoomNavigator roomNavigator;
+        ClueCollector clueCollector;
+        InventoryQueue inventory;
+        int playerScore = 0;
+
         typeWriter("══════════════════════════════════════════════\n");
+        typeWriter("CHAPTER 8 — THE LOOP WITHIN THE LOOP\n");
+        typeWriter("══════════════════════════════════════════════\n\n");
 
+        int currentRoom = 5; // Temporal Paradox Zone entry
+        bool chapterActive = true;
+
+        // Story narration intro
         typeWriter("The decision does not execute.\n");
-
         typeWriter("Instead, the system freezes.");
         typeWriter("Not a crash.");
         typeWriter("Not a reset.");
@@ -1266,16 +1610,13 @@ void chapter7() {
         typeWriter("Lights flicker backward.\n");
 
         typeWriter("A hidden log opens on the terminal.\n");
-
         typeWriter("\"Iteration Count: " + to_string(depth) + "\"\n");
-
         typeWriter("You read the file header:\n");
         typeWriter("\"USER_ID: UNKNOWN\"");
         typeWriter("\"STATUS: AWARE\"");
         typeWriter("\"FIRST LOOP: UNRECORDED\"\n");
 
         typeWriter("Your stomach drops.\n");
-
         typeWriter("Someone else was here before you.");
         typeWriter("Someone who remembered.");
         typeWriter("Someone who went deeper.\n");
@@ -1287,38 +1628,61 @@ void chapter7() {
 
         typeWriter("[DSA] Recursive timeline call detected.\n");
 
-            if (depth == 1) {
-            suspects.updateSuspicion("Commander Hayes", 1);
-            suspects.updateSuspicion("Sarah Mitchell", 1);
-            suspects.updateSuspicion("Dr. Elena Markov", 2);
-        } else if (depth == 2) {
-            suspects.updateSuspicion("Commander Hayes", 1);
-            suspects.updateSuspicion("Sarah Mitchell", 1);
-            suspects.updateSuspicion("Dr. Elena Markov", 2);
+            // ======= Recursive Loop Puzzle =======
+            RecursiveLoopPuzzle loopPuzzle;
+            if (loopPuzzle.solvePuzzle(playerScore)) {
+                typeWriter("\nYou successfully navigated the nested loops.\n");
+                actionStack.push("Nested loop puzzle solved", 83 + depth, "Temporal Paradox Zone", 8);
+            } else {
+                typeWriter("\nYou failed to navigate the loops correctly. Time destabilizes momentarily.\n");
+                actionStack.push("Nested loop puzzle failed", 83 + depth, "Temporal Paradox Zone", 8);
+            }
+
+        // ===== Interactive gameplay loop =====
+        while (chapterActive) {
+            roomNavigator.displayCurrentRoom(currentRoom);
+            cout << "\nEnter choice (room number to move, 0 to search for clues, 9 to exit this depth): ";
+            int choice;
+            cin >> choice;
+
+            if (choice == 9) {
+                typeWriter("\nExiting current memory layer...\n");
+                chapterActive = false;
+            } else if (choice == 0) {
+                clueCollector.searchRoom(currentRoom, playerScore);
+
+                // Story-driven events during search
+                typeWriter("\n[SYSTEM] Observing temporal distortions at depth " + to_string(depth) + "...\n");
+                actionStack.push("Temporal paradox observed", 82 + depth, "Temporal Paradox Zone", 8);
+
+                // Update suspicion based on depth
+                if (depth == 1 || depth == 2) {
+                    suspects.updateSuspicion("Commander Hayes", 1);
+                    suspects.updateSuspicion("Sarah Mitchell", 1);
+                    suspects.updateSuspicion("Dr. Elena Markov", 2);
+                }
+                suspects.sortBySuspicion();
+                suspects.displaySuspects();
+            } else {
+                currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
+            }
         }
 
-        suspects.sortBySuspicion();
-        suspects.displaySuspects();
-
+        // Recursive story dive
         if (depth < 3) {
-            typeWriter("The system forces a deeper dive.\n");
-            typeWriter("Re-entering memory layer...\n");
-
-            chapter8(depth + 1);   // Recursive call
-        } 
-         else {
+            typeWriter("The system forces a deeper dive...\nRe-entering memory layer...\n");
+            chapter8(depth + 1);
+        } else {
+            // Final depth narration
             typeWriter("The recursion stabilizes.\n");
+            actionStack.push("Recursion stabilized", 90, "Temporal Paradox Zone", 8);
 
-            typeWriter("A final message appears:\n");
-            typeWriter("\"TIME CANNOT BE FIXED FROM INSIDE THE LOOP\"");
-            typeWriter("\"ONLY OBSERVED. ONLY CONTAINED.\"\n");
+            typeWriter("A final message appears:\n\"TIME CANNOT BE FIXED FROM INSIDE THE LOOP\"\n\"ONLY OBSERVED. ONLY CONTAINED.\"\n");
+            actionStack.push("Final paradox message observed", 91, "Temporal Paradox Zone", 8);
 
-            typeWriter("You finally understand.\n");
+            typeWriter("You finally understand.\nThe loop was never broken.\nIt was nested.\nEach reset buried inside another.\n");
+            actionStack.push("Realized nested loops", 92, "Temporal Paradox Zone", 8);
 
-            typeWriter("The loop was never broken.");
-            typeWriter("It was nested.\n");
-
-            typeWriter("Each reset buried inside another.");
             typeWriter("A loop...");
             typeWriter("Inside a loop...");
             typeWriter("Inside a loop.\n");
@@ -1327,259 +1691,269 @@ void chapter7() {
             typeWriter("You were chosen to reach this depth.\n");
         }
 
-        typeWriter("══════════════════════════════════════════════");
-        typeWriter("EXITING CHAPTER 8");
+        // Chapter summary
+        typeWriter("\nChapter summary:\n");
+        typeWriter("Score: " + to_string(playerScore) + "\n");
+        clueCollector.displayCollectedClues();
+        inventory.display();
+
+        typeWriter("══════════════════════════════════════════════\n");
+        typeWriter("EXITING CHAPTER 8\n");
         typeWriter("══════════════════════════════════════════════\n");
     }
 
-    void chapter9() {
-        typeWriter("══════════════════════════════════════════════");
-        typeWriter("CHAPTER 9 — ORDER FROM CHAOS");
-        typeWriter("══════════════════════════════════════════════\n");
+ void chapter9() {
+    // ======== Local game objects ======== 
+    RoomNavigator roomNavigator;
+    ClueCollector clueCollector;
+    InventoryQueue inventory;
+    AlarmCodePuzzle alarmPuzzle;
+    int playerScore = 0;
 
-        typeWriter("The Data Archives breathe.\n");
-        typeWriter("Screens flicker endlessly.");
-        typeWriter("Numbers.");
-        typeWriter("Dates.");
-        typeWriter("Events stacked upon events.\n");
+    typeWriter("══════════════════════════════════════════════\n");
+    typeWriter("CHAPTER 9 — ORDER FROM CHAOS\n");
+    typeWriter("══════════════════════════════════════════════\n\n");
 
-        typeWriter("This is not information.");
-        typeWriter("This is noise.\n");
+    int currentRoom = 2; // Archive Core
+    bool chapterActive = true;
 
-        typeWriter("You step into the archive core.\n");
+    actionStack.push("Entered Data Archives", 100, "Archive Core", 9);
 
-        typeWriter("A holographic message appears:\n");
-        typeWriter("\"TEMPORAL DATA OVERLOAD\"");
-        typeWriter("\"STRUCTURAL FAILURE IMMINENT\"\n");
+    while (chapterActive) {
+        roomNavigator.displayCurrentRoom(currentRoom);
+        cout << "\nEnter choice (room number to move, 0 to search for clues, 1 to solve alarm, 9 to end chapter): ";
+        int choice;
+        cin >> choice;
 
-        typeWriter("Your pulse quickens.\n");
+        if (choice == 9) {
+            typeWriter("\nChapter 9 ends here. Order has been restored, but the cost is heavy.\n");
+            chapterActive = false;
+        } else if (choice == 0) {
+            clueCollector.searchRoom(currentRoom, playerScore);
 
-        typeWriter("Raw data floods the system:\n");
-        typeWriter("• Power fluctuations");
-        typeWriter("• Memory deviations");
-        typeWriter("• Security overrides");
-        typeWriter("• Reactor anomalies");
-        typeWriter("• Human interference logs\n");
+            // Story-driven events for Archive Core
+            typeWriter("\nScreens flicker endlessly with raw data.\nNumbers, dates, events stacked upon events.\n");
+            actionStack.push("Observed chaotic data", 101, "Archive Core", 9);
 
-        typeWriter("None of it makes sense.");
-        typeWriter("Not yet.\n");
+            typeWriter("You begin to sort the events by priority and timestamp.\nOrder forms.\nThe timeline stabilizes.\n");
+            actionStack.push("Timeline stabilized", 109, "Archive Core", 9);
 
-        typeWriter("You understand what must be done.\n");
-        typeWriter("Chaos cannot be destroyed.");
-        typeWriter("It must be organized.\n");
+            typeWriter("One entry keeps repeating...\nYou perform a binary search and locate the origin of the loop.\n");
+            actionStack.push("Origin point located", 112, "Archive Core", 9);
 
-        typeWriter("[SYSTEM] INITIATING DATA SORT\n");
-        typeWriter("[DSA] Sorting events by priority and timestamp.\n");
+            typeWriter("Dr. Elena Markov is revealed as the one maintaining the loop.\n");
+            actionStack.push("Identified Dr. Elena Markov as controller", 115, "Archive Core", 9);
 
-        typeWriter("Events rearrange themselves.");
-        typeWriter("Urgent anomalies rise to the top.");
-        typeWriter("Minor fluctuations sink below.\n");
-
-        typeWriter("Order begins to form.\n");
-
-        typeWriter("The screen stabilizes.");
-        typeWriter("For the first time since the loop began...\n");
-        typeWriter("You can read the timeline.\n");
-
-        typeWriter("One entry keeps reappearing.\n");
-        typeWriter("You narrow the dataset.\n");
-
-        typeWriter("[DSA] Binary Search initiated on sorted logs.\n");
-        typeWriter("Searching for origin point...");
-        typeWriter("Searching for first deviation...\n");
-
-        typeWriter("MATCH FOUND.\n");
-        typeWriter("Timestamp:");
-        typeWriter("06:59:58 AM — TWO SECONDS BEFORE FIRST LOOP\n");
-
-        typeWriter("Your breath catches.\n");
-        typeWriter("An event recorded before the loop existed.");
-        typeWriter("Impossible.\n");
-
-        typeWriter("You scroll further.\n");
-        typeWriter("Another match.");
-        typeWriter("And another.");
-        typeWriter("All identical.\n");
-
-        typeWriter("Same authorization.");
-        typeWriter("Same access level.\n");
-
-        typeWriter("OMEGA CLEARANCE.\n");
-        typeWriter("A name appears repeatedly:\n");
-        typeWriter("Dr. Elena Markov\n");
-
-        typeWriter("Your hands tighten.\n");
-        typeWriter("She wasn’t reacting to the loop.");
-        typeWriter("She was maintaining it.\n");
-
-        typeWriter("[DSA] Sequential search confirms pattern across loops.\n");
-
-        // Update suspects dynamically
-        suspects.updateSuspicion("Commander Hayes", 2);
-        suspects.updateSuspicion("Sarah Mitchell", 2);
-        suspects.updateSuspicion("Dr. Elena Markov", 3);
-
-        suspects.sortBySuspicion();
-        suspects.displaySuspects();
-
-        typeWriter("Every catastrophic outcome was logged.");
-        typeWriter("Every successful containment preserved.\n");
-
-        typeWriter("The realization settles slowly.\n");
-
-        typeWriter("The loop was not a mistake.");
-        typeWriter("It was a solution.\n");
-
-        typeWriter("Someone sorted futures.");
-        typeWriter("Someone searched outcomes.");
-        typeWriter("Someone chose the least destructive path.\n");
-
-        typeWriter("And now...");
-        typeWriter("That responsibility has shifted to you.\n");
-
-        typeWriter("[SYSTEM] DATA INTEGRITY: 100%");
-        typeWriter("[SYSTEM] TRUTH STATUS: UNLOCKED\n");
-
-        typeWriter("The room falls silent.\n");
-        typeWriter("Order has been restored.\n");
-        typeWriter("But order comes with a cost.\n");
-
-        typeWriter("Because now you know:\n");
-        typeWriter("Chaos was never the threat.");
-        typeWriter("Uncontrolled choice was.\n");
-
-        typeWriter("══════════════════════════════════════════════");
-        typeWriter("END OF CHAPTER 9");
-        typeWriter("══════════════════════════════════════════════\n");
+            // Update suspects dynamically
+            suspects.updateSuspicion("Commander Hayes", 2);
+            suspects.updateSuspicion("Sarah Mitchell", 2);
+            suspects.updateSuspicion("Dr. Elena Markov", 3);
+            suspects.sortBySuspicion();
+            suspects.displaySuspects();
+        } else if (choice == 1) {
+            typeWriter("\nYou find an alarm system threatening to overload the archive.\n");
+            if (alarmPuzzle.solvePuzzle(playerScore)) {
+                inventory.addItem("Deactivated Alarm Key");
+                actionStack.push("Alarm deactivated", 124, "Archive Core", 9);
+            } else {
+                typeWriter("⚠️ System instability increases!\n");
+                actionStack.push("Alarm triggered, instability increased", 125, "Archive Core", 9);
+            }
+        } else {
+            currentRoom = roomNavigator.moveToRoom(currentRoom, choice);
+        }
     }
+
+    // Show summary of collected clues and inventory
+    typeWriter("\nChapter summary:\n");
+    typeWriter("Score: " + to_string(playerScore) + "\n");
+    clueCollector.displayCollectedClues();
+    inventory.display();
+
+    typeWriter("\n══════════════════════════════════════════════\n");
+    typeWriter("END OF CHAPTER 9\n");
+    typeWriter("══════════════════════════════════════════════\n");
+}
 
 
 void chapter10() {
-    typeWriter("══════════════════════════════════════════════");
-    typeWriter("CHAPTER 10 — THE FINAL REVELATION");
     typeWriter("══════════════════════════════════════════════\n");
+    typeWriter("CHAPTER 10 — THE FINAL REVELATION\n");
+    typeWriter("══════════════════════════════════════════════\n\n");
 
-    typeWriter("The deepest level of the Data Archives unlocks.\n");
+    actionStack.push("Entered deepest Data Archives", 130, "Archive Root", 10);
+    typeWriter("The deepest level of the Data Archives unlocks.\nNo alarms.\nNo warnings.\nOnly silence.\n");
 
-    typeWriter("No alarms.");
-    typeWriter("No warnings.");
-    typeWriter("Only silence.\n");
+    actionStack.push("Observed terminal untouched by resets", 131, "Archive Root", 10);
+    typeWriter("The door slides open slowly.\nInside, a single terminal glows.\nOlder than the rest.\nUntouched by resets.\n");
 
-    typeWriter("The door slides open slowly.\n");
+    actionStack.push("Root access granted", 132, "Archive Root", 10);
+    typeWriter("You approach.\n[SYSTEM] TEMPORAL ROOT ACCESS GRANTED\n");
 
-    typeWriter("Inside, a single terminal glows.");
-    typeWriter("Older than the rest.");
-    typeWriter("Untouched by resets.\n");
+    actionStack.push("Memories of all loops retrieved", 133, "Archive Root", 10);
+    typeWriter("Your memories surge.\nEvery loop.\nEvery failure.\nEvery rewind.\nThey were never erased.\nThey were stored.\n");
 
-    typeWriter("You approach.\n");
+    actionStack.push("Full action history visualized", 134, "Archive Root", 10);
+    typeWriter("[DSA] Stack accessed — full action history retrieved.\nTerminal projects timeline tree with branching futures.\n");
 
-    typeWriter("[SYSTEM] TEMPORAL ROOT ACCESS GRANTED\n");
+    actionStack.push("Identified stable branch", 135, "Archive Root", 10);
+    typeWriter("One branch pulses brighter than the rest.\nA stable loop.\nA controlled future.\n");
 
-    typeWriter("Your memories surge.\n");
+    actionStack.push("Dr. Markov's recorded message plays", 136, "Archive Root", 10);
+    typeWriter("A voice echoes through the chamber.\n\"If you are seeing this, then the loop worked.\"\n");
 
-    typeWriter("Every loop.");
-    typeWriter("Every failure.");
-    typeWriter("Every rewind.\n");
+    actionStack.push("Dr. Markov recording observed", 137, "Archive Root", 10);
+    typeWriter("Dr. Elena Markov appears on the screen.\nNot live.\nA recording.\n");
 
-    typeWriter("They were never erased.");
-    typeWriter("They were stored.\n");
+    actionStack.push("Markov explains loop purpose", 138, "Archive Root", 10);
+    typeWriter("\"We searched every outcome. Sorted them by survival. This was the least destructive future.\"\n");
 
-    typeWriter("[DSA] Stack accessed — full action history retrieved.\n");
+    actionStack.push("Player identified as memory carrier", 139, "Archive Root", 10);
+    typeWriter("She continues:\n\"Someone had to remain aware. Someone had to carry memory across resets. That person is you.\"\n");
 
-    typeWriter("The terminal projects a timeline tree.\n");
-    typeWriter("Branches stretch endlessly.");
-    typeWriter("Some collapse.");
-    typeWriter("Some stabilize.");
-    typeWriter("Most end in ruin.\n");
+    actionStack.push("Player realizes purpose", 140, "Archive Root", 10);
+    typeWriter("Your chest tightens.\nThe truth settles heavily.\nYou were not trapped by the loop. You were chosen.\n");
 
-    typeWriter("[DSA] Decision Tree traversal completed.\n");
-
-    typeWriter("One branch pulses brighter than the rest.\n");
-    typeWriter("A stable loop.");
-    typeWriter("A controlled future.\n");
-
-    typeWriter("A voice echoes through the chamber.\n");
-    typeWriter("\"If you are seeing this,\"");
-    typeWriter("\"then the loop worked.\"\n");
-
-    typeWriter("Dr. Elena Markov appears on the screen.\n");
-    typeWriter("Not live.");
-    typeWriter("A recording.\n");
-
-    typeWriter("\"We searched every outcome,\" she says.");
-    typeWriter("\"Sorted them by survival.\"");
-    typeWriter("\"This was the least destructive future.\"\n");
-
-    typeWriter("Your chest tightens.\n");
-
-    typeWriter("She continues:\n");
-    typeWriter("\"Someone had to remain aware.\"");
-    typeWriter("\"Someone had to carry memory across resets.\"");
-    typeWriter("\"That person is you.\"\n");
-
-    typeWriter("You stagger back.\n");
-    typeWriter("The truth settles heavily.\n");
-    typeWriter("You were not trapped by the loop.");
-    typeWriter("You were chosen.\n");
-
-    typeWriter("[DSA] Priority Queue resolved — critical future identified.\n");
-
-    // Update suspects based on the final revelation
+    // Update suspects dynamically
     suspects.updateSuspicion("Commander Hayes", 3);
     suspects.updateSuspicion("Sarah Mitchell", 3);
     suspects.updateSuspicion("Dr. Elena Markov", 5);
-
     suspects.sortBySuspicion();
     suspects.displaySuspects();
 
-    typeWriter("The terminal presents two final commands.\n");
+    // === BINARY DECISION TREE FOR FINAL CHOICE ===
+    int totalScore = 0;
+    BinaryDecisionTree decisionTree;
+    decisionTree.playChapter10(totalScore);
 
-    typeWriter("OPTION 1:");
-    typeWriter("Destroy the Temporal Loop.");
-    typeWriter("Restore natural time.");
-    typeWriter("Release the future — uncertain, uncontrolled.\n");
+    typeWriter("\nYour final decision added a total score of: " + to_string(totalScore) + "\n");
 
-    typeWriter("OPTION 2:");
-    typeWriter("Preserve the Temporal Loop.");
-    typeWriter("Maintain containment.");
-    typeWriter("Sacrifice freedom for survival.\n");
+    actionStack.push("Player makes final decision with score: " + to_string(totalScore), 145, "Archive Root", 10);
 
-    typeWriter("Your hands hover over the console.\n");
+    // Optional: log full action stack
+    actionStack.display();
 
-    typeWriter("You understand now.\n");
-    typeWriter("This is not a system choice.");
-    typeWriter("This is a human one.\n");
-
-    typeWriter("Every structure.");
-    typeWriter("Every algorithm.");
-    typeWriter("Every loop.\n");
-    typeWriter("They all led here.\n");
-
-    typeWriter("You inhale slowly.\n");
-    typeWriter("And make your decision.\n");
-
-    typeWriter("══════════════════════════════════════════════");
-    typeWriter("END OF CHAPTER 10");
+    typeWriter("══════════════════════════════════════════════\n");
+    typeWriter("END OF CHAPTER 10\n");
     typeWriter("══════════════════════════════════════════════\n");
 }
-};
+    };
+
+    /* =====================================================
+    GAME FLOW FUNCTIONS
+    - YAHAN STORY + TIMELINE MILTI HAI
+    ===================================================== */
+    void playChapter(int chapter, Story &story, TimelineManager &timeline) {
+        switch (chapter) {
+            case 0: story.chapter1(); break;
+            case 1: story.chapter2(); break;
+            case 2: story.chapter3(); break;
+            case 3: story.chapter4(); break;
+            case 4: story.chapter5(); break;
+            case 5: story.chapter6(); break;
+            case 6: story.chapter7(); break;
+            case 7: story.chapter8(); break;
+            case 8: story.chapter9(); break;
+            case 9: story.chapter10(); break;
+        }
+        timeline.displayChapterTimeline(chapter);
+    }
+
 
 // =====================
 // Main Function
 // =====================
 int main() {
+    // Initialize file manager
+    GameFileManager fileManager;
+    
+    // Game state tracking
+    string playerName = "Detective";
+    int currentChapter = 0;
+    int currentRoom = 0;
+    int playerScore = 0;
+    int loopCount = 0;
+    bool cluesCollected[10] = {false};
+    int suspicionLevels[4] = {7, 5, 8, 4};
+    
     Story story;
-
-    // Call chapters in order
+    
+    // Auto-save before each chapter
+    cout << "\n==> Starting Temporal Loop...\n";
+    fileManager.saveGameState(playerName, 0, 0, 0, 0, cluesCollected, suspicionLevels);
+    
+    // Chapter 1
     story.chapter1();
+    fileManager.saveChapterProgress(1, "Memory That Shouldn't Exist", playerScore);
+    fileManager.saveGameState(playerName, 1, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 2
     story.chapter2();
+    fileManager.saveChapterProgress(2, "Research Wing", playerScore);
+    fileManager.saveGameState(playerName, 2, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 3
     story.chapter3();
+    fileManager.saveChapterProgress(3, "Security Sector", playerScore);
+    fileManager.saveGameState(playerName, 3, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 4
     story.chapter4();
+    fileManager.saveChapterProgress(4, "Data Archives", playerScore);
+    fileManager.saveGameState(playerName, 4, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 5
     story.chapter5();
+    fileManager.saveChapterProgress(5, "Research Wing Confrontation", playerScore);
+    fileManager.saveGameState(playerName, 5, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 6
     story.chapter6();
+    fileManager.saveChapterProgress(6, "People Who Change", playerScore);
+    fileManager.saveGameState(playerName, 6, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 7
     story.chapter7();
+    fileManager.saveChapterProgress(7, "The Choice That Breaks Time", playerScore);
+    fileManager.saveGameState(playerName, 7, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 8
     story.chapter8();
+    fileManager.saveChapterProgress(8, "The Loop Within The Loop", playerScore);
+    fileManager.saveGameState(playerName, 8, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 9
     story.chapter9();
+    fileManager.saveChapterProgress(9, "Order From Chaos", playerScore);
+    fileManager.saveGameState(playerName, 9, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Chapter 10 - Final
     story.chapter10();
+    fileManager.saveChapterProgress(10, "The Final Revelation", playerScore);
+    fileManager.saveGameState(playerName, 10, currentRoom, playerScore, loopCount, cluesCollected, suspicionLevels);
+    
+    // Save final high score
+    fileManager.saveHighScore(playerName, playerScore, loopCount);
+    
+    // Export final suspect data
+    string suspectNames[4] = {"Dr. Elena Markov", "Commander Hayes", "Dr. Chen Wei", "Sarah Mitchell"};
+    fileManager.exportSuspectData(suspectNames, suspicionLevels);
+    
+    // Display completion
+    cout << "\n\n+--------------------------------------------------------+\n";
+    cout << "�              GAME COMPLETE!                           �\n";
+    cout << "+--------------------------------------------------------+\n";
+    cout << "Final Score: " << playerScore << "\n";
+    cout << "Time Loops: " << loopCount << "\n";
+    
+    // Show high scores
+    fileManager.displayHighScores();
+    
+    cout << "\n==> All game data saved to files:\n";
+    cout << "    - temporal_savegame.txt (Game state)\n";
+    cout << "    - temporal_progress.txt (Chapter log)\n";
+    cout << "    - temporal_highscores.txt (High scores)\n";
+    cout << "    - temporal_suspects.txt (Suspect data)\n";
+    
     return 0;
 }
